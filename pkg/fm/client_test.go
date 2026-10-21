@@ -42,7 +42,6 @@ func TestAvailableNotReady(t *testing.T) {
 	}{
 		{"license", "Error: License not accepted. Run sudo fm license.\n", ErrLicense},
 		{"model not ready", "Error: modelNotReady\n", ErrUnavailable},
-		{"unclassified non-zero exit", "something unexpected\n", ErrUnavailable},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

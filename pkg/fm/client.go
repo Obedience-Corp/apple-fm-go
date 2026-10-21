@@ -102,15 +102,12 @@ type Availability struct {
 
 // Available runs fm available. When the model is not ready, Available returns
 // Ready false together with an error matching ErrLicense or ErrUnavailable.
-// A missing executable returns ErrNotFound.
+// A non-zero exit that matches neither is returned unclassified with its
+// stderr attached. A missing executable returns ErrNotFound.
 func (c *Client) Available(ctx context.Context) (Availability, error) {
 	out, err := c.run(ctx, []string{cmdAvailable})
 	status := Availability{Stdout: out.stdout}
 	if err != nil {
-		var fmErr *Error
-		if errors.As(err, &fmErr) && fmErr.Kind == nil && fmErr.ExitCode > 0 {
-			fmErr.Kind = ErrUnavailable
-		}
 		return status, err
 	}
 	status.Ready = true

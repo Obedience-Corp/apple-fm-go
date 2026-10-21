@@ -10,7 +10,7 @@ The API is unstable until `v1.0.0`.
 - The `fm` terms accepted once by an operator with `sudo fm license`. This library never runs `sudo` and never accepts the terms for you.
 - `fm available` succeeding in a terminal.
 
-The package builds and its unit tests pass on any OS, including Linux, because it only executes a binary.
+The package builds and its unit tests pass on Linux, macOS, and Windows, because it only executes a binary.
 
 ## Install
 
@@ -75,7 +75,7 @@ func main() {
 }
 ```
 
-Every method takes a `context.Context`. Canceling it kills `fm` and any process it started.
+Every method takes a `context.Context`. Canceling it kills `fm`. On Unix the whole process group dies, so helpers `fm` started die too; on Windows only `fm` itself is killed.
 
 `Client.Env` is the child environment. Leave it nil to pass through the current process environment.
 
