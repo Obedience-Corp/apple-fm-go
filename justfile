@@ -1,26 +1,21 @@
-# apple-fm-go recipes
+mod check '.justfiles/check.just'
 
 [private]
 default:
     @just --list --unsorted
 
-# Run the unit tests (no fm binary required)
+# Run fake-process unit tests in Docker.
 test:
-    go test ./...
+    just check unit
 
-# Run the integration test against a real fm on macOS 27
+# Run native smoke tests only; unavailable prerequisites skip.
 test-applefm:
-    go test -tags applefm ./...
+    just check native
 
-# Lint with golangci-lint when installed, otherwise go vet
+# Check formatting and vet both default and applefm-tagged packages.
 lint:
-    #!/usr/bin/env sh
-    if command -v golangci-lint >/dev/null 2>&1; then
-        golangci-lint run
-    else
-        go vet ./...
-    fi
+    just check lint
 
-# Format all Go files
+# Format all Go files.
 fmt:
-    gofmt -w .
+    gofmt -w pkg examples

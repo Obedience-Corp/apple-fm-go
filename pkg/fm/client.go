@@ -1,5 +1,6 @@
 // Package fm is an unofficial Go client for the fm command-line tool that
-// ships with macOS 27 and runs Apple's on-device Foundation Model.
+// ships with macOS 27. Apple documents on-device and Private Cloud Compute
+// access through the CLI; this wrapper passes model selection through.
 //
 // The client shells out to fm. It does not link FoundationModels or embed a
 // model. The subcommand and flag spellings it sends are provisional until they
