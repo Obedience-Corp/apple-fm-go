@@ -1,0 +1,61 @@
+name: Beta release
+
+on:
+  push:
+    tags: ['v*-beta.*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate beta tag and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Expected a tag such as v0.1.0-beta.2" >&2
+            exit 1
+          fi
+          git merge-base --is-ancestor HEAD origin/main
+          test -s "docs/releases/$GITHUB_REF_NAME.md"
+          grep -Fx "## [${GITHUB_REF_NAME#v}]" CHANGELOG.md
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: false
+      - uses: taiki-e/install-action@just
+      - name: Release checks
+        run: just release check
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "$GITHUB_REF_NAME^{commit}")"
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag --prerelease --latest=false \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "docs/releases/$GITHUB_REF_NAME.md"
