@@ -21,14 +21,14 @@ jobs:
           go-version: "1.24"
           cache: false
 
-      - name: Vet
-        run: go vet ./...
+      - uses: taiki-e/install-action@just
 
-      - name: Vet applefm tag
-        run: go vet -tags applefm ./...
+      - name: Lint
+        run: just lint
 
-      - name: Build for Windows
-        run: GOOS=windows GOARCH=amd64 go build ./...
+      - name: Build consumer platform matrix
+        run: just check cross-build
 
-      - name: Test
-        run: go test ./...
+      - name: Test in isolated container
+        if: runner.os == 'Linux'
+        run: just test

@@ -12,8 +12,9 @@ import (
 type RespondOptions struct {
 	// Instructions is the system-style instruction for the model.
 	Instructions string
-	// Model selects the model. Leave it empty for the CLI default, or pass
-	// "system". Other names are sent as given.
+	// Model selects the model. Leave it empty for the CLI default. Apple
+	// demonstrates "pcc" for Private Cloud Compute, which has usage limits.
+	// Names pass through unchanged; availability depends on the installed CLI.
 	Model string
 	// ImagePaths are image files attached to the prompt, sent in order.
 	ImagePaths []string
