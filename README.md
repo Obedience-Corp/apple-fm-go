@@ -24,7 +24,7 @@
 
 ## Project status
 
-**Experimental and unreleased.** The Go wrapper is tested with fake subprocesses; its CLI contract still needs verification against a real macOS 27 installation before `v0.1.0`. The [compatibility review](docs/compatibility.md) records the evidence and remaining checks. This is an independent project, not affiliated with or endorsed by Apple.
+**Experimental beta: `v0.1.0-beta.1`.** The Go wrapper is tested with fake subprocesses; its CLI contract still needs verification against a real macOS 27 installation before `v0.1.0`. The [compatibility review](docs/compatibility.md) records the evidence and remaining checks. This is an independent project, not affiliated with or endorsed by Apple.
 
 ## Features
 
@@ -51,14 +51,13 @@ On a host without `fm`, the Go package still compiles and calls return `fm.ErrNo
 
 ## Installation
 
-The repository is currently private. With repository access and Git authentication configured:
+Install the beta from the public Go module:
 
 ```sh
-GOPRIVATE=github.com/Obedience-Corp/apple-fm-go \
-  go get github.com/Obedience-Corp/apple-fm-go@main
+go get github.com/Obedience-Corp/apple-fm-go@v0.1.0-beta.1
 ```
 
-There is no tagged release yet. Go records the resolved commit as a pseudo-version in your application's `go.mod`.
+Pin the explicit beta version while the API and CLI mapping are provisional. See the [release notes](https://github.com/Obedience-Corp/apple-fm-go/releases/tag/v0.1.0-beta.1) and [changelog](CHANGELOG.md). For release maintenance, see [Releasing apple-fm-go](docs/releases.md).
 
 ## Quick start
 

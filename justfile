@@ -1,4 +1,5 @@
 mod check '.justfiles/check.just'
+mod release '.justfiles/release.just'
 
 [private]
 default:
