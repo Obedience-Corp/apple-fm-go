@@ -1,102 +1,122 @@
-# apple-fm-go
+<h1 align="center">Apple Foundation Models for Go</h1>
 
-`apple-fm-go` is an unofficial Go client for Apple's `fm` command-line tool. It provides context-aware calls for text responses, image prompts, structured output, availability checks, and token counting. It executes a subprocess and has no CGo, Swift, or Python dependency.
+<p align="center">
+  A lightweight Go SDK for Apple's <code>fm</code> command-line tool.
+</p>
 
-**Status: experimental, unreleased.** The API and CLI mapping are provisional. Fake-process tests verify the Go wrapper; a real macOS 27 `fm` compatibility run is still required before `v0.1.0`. This project is not affiliated with or endorsed by Apple.
+<p align="center">
+  <a href="#project-status"><img src="https://img.shields.io/badge/status-experimental-orange.svg" alt="Status: experimental"></a>
+  <a href="go.mod"><img src="https://img.shields.io/badge/Go-1.24%2B-00ADD8.svg" alt="Go 1.24+"></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/inference-macOS%2027-555555.svg" alt="Inference: macOS 27"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
+  <a href="https://github.com/Obedience-Corp/festival"><img src="https://img.shields.io/badge/built%20with-Festival-7c3aed.svg" alt="Built with Festival"></a>
+</p>
 
-## Requirements and compatibility
+<p align="center">
+  <a href="#installation">Install</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#examples">Examples</a> ·
+  <a href="docs/compatibility.md">Compatibility</a> ·
+  <a href="#development">Development</a>
+</p>
 
-- Go 1.24 or later.
-- To run inference: macOS 27 and an Apple Intelligence-capable Mac with the model available. Apple introduced the CLI in [WWDC26 session 334](https://developer.apple.com/videos/play/wwdc2026/334/).
-- Follow the installed CLI's setup and license instructions. The library never runs `sudo` or accepts terms. The earlier `sudo fm license` setup assumption remains unverified.
+`apple-fm-go` brings Apple's `fm` CLI into Go applications: send prompts, attach images, request structured JSON, and propagate cancellation through the subprocess. The package uses only the Go standard library, with no CGo, Swift, or Python build dependency.
 
-The module and examples compile for Linux, macOS, and Windows on amd64 and arm64. Compilation does not imply that Apple's executable is available on those platforms: callers can import the package on unsupported hosts and handle `ErrNotFound` when invoking it.
+## Project status
 
-This is a CLI wrapper, not a binding to the complete Foundation Models framework. Apple's separate [Python SDK](https://github.com/apple/python-apple-fm-sdk) supports macOS 26.0+ with Xcode 26.0+ and Python 3.10+; that does **not** make the `fm` executable available on macOS 26.
+**Experimental and unreleased.** The Go wrapper is tested with fake subprocesses; its CLI contract still needs verification against a real macOS 27 installation before `v0.1.0`. The [compatibility review](docs/compatibility.md) records the evidence and remaining checks. This is an independent project, not affiliated with or endorsed by Apple.
 
-## Apple API coverage
+## Features
 
-Reviewed against Apple's published documentation on **2026-10-29**.
+- **Text and image prompts** — instructions, model selection, and image paths in one request.
+- **Structured output** — schema generation and JSON replies, with raw output retained on parse errors.
+- **Context cancellation** — deadlines and cancellation reach every subprocess operation.
+- **Inspectable errors** — match categories with `errors.Is` and inspect exit status, stdout, and stderr.
+- **Portable imports** — compile the SDK and examples for Linux, macOS, and Windows on amd64 and arm64; inference requires Apple's executable.
 
-| Capability | This Go SDK |
+Responses are buffered until the process exits. Streaming, persistent conversations, and tool calling are not exposed by this SDK.
+
+## Requirements
+
+| Requirement | Details |
 | --- | --- |
-| One-shot text, instructions, image paths | `Respond`; buffers output until the process exits |
-| Model selection | `RespondOptions.Model` passes the value through; Apple demonstrates `pcc` for Private Cloud Compute |
-| Guided output | `SchemaObject` builds a schema; `SchemaPath` requests JSON; string and integer fields only |
-| Availability and token counting | `Available`, `CountTokens`; command/output contracts still await native verification |
-| Streaming, conversation history, chat save/resume | Not exposed; each call starts a fresh process |
-| Tools, Dynamic Profiles, custom providers, reasoning controls | Not exposed by this wrapper |
+| Build | Go 1.24 or later |
+| Inference | macOS 27 on an Apple Intelligence-capable Mac with the model available |
+| Executable | `fm` on `PATH`, or an explicit executable path passed to `fm.New` |
+| Setup | Follow the installed CLI's setup and license instructions; the SDK never runs `sudo` or accepts terms |
 
-Apple's [Foundation Models updates](https://developer.apple.com/documentation/updates/foundationmodels) describe newer model APIs, image analysis, Dynamic Profiles, tool-calling controls, and revised Swift error types. These framework APIs do not establish equivalent CLI flags or exit codes. See the [compatibility review](docs/compatibility.md) for evidence and outstanding checks.
+Apple introduced the CLI in [WWDC26 session 334](https://developer.apple.com/videos/play/wwdc2026/334/). Apple's separate [Python SDK](https://github.com/apple/python-apple-fm-sdk) supports macOS 26.0+ with Xcode 26.0+ and Python 3.10+; those requirements do not apply to this CLI wrapper.
 
-## Install
+On a host without `fm`, the Go package still compiles and calls return `fm.ErrNotFound`. This allows applications to offer the provider conditionally.
+
+## Installation
+
+The repository is currently private. With repository access and Git authentication configured:
 
 ```sh
-go get github.com/Obedience-Corp/apple-fm-go
+GOPRIVATE=github.com/Obedience-Corp/apple-fm-go \
+  go get github.com/Obedience-Corp/apple-fm-go@main
 ```
 
+There is no tagged release yet. Go records the resolved commit as a pseudo-version in your application's `go.mod`.
+
 ## Quick start
+
+Send one prompt with a deadline:
 
 ```go
 package main
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"log"
-	"time"
+    "context"
+    "fmt"
+    "log"
+    "time"
 
-	"github.com/Obedience-Corp/apple-fm-go/pkg/fm"
+    "github.com/Obedience-Corp/apple-fm-go/pkg/fm"
 )
 
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	client := fm.New("fm") // an empty string also looks up "fm" on PATH
+    ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+    defer cancel()
 
-	if _, err := client.Available(ctx); err != nil {
-		switch {
-		case errors.Is(err, fm.ErrNotFound):
-			log.Fatal("fm is not installed; it ships with macOS 27")
-		case errors.Is(err, fm.ErrLicense):
-			log.Fatal("review the installed fm license/setup instructions")
-		default:
-			log.Fatal(err)
-		}
-	}
-
-	resp, err := client.Respond(ctx, "What does chmod do?", &fm.RespondOptions{
-		Instructions: "Answer in one sentence.",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Print(resp.Stdout)
-
-	n, err := client.CountTokens(ctx, fm.CountRequest{Text: "A document to measure."})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("tokens:", n)
-
-	schema, err := client.SchemaObject(ctx, fm.ObjectSchema{
-		Name: "Person",
-		Fields: []fm.Field{
-			{Name: "name", Type: fm.String},
-			{Name: "age", Type: fm.Int},
-		},
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s", schema) // write to a file and pass it as RespondOptions.SchemaPath
+    client := fm.New("") // Locate fm on PATH.
+    response, err := client.Respond(ctx, "What does chmod do?", &fm.RespondOptions{
+        Instructions: "Answer in one sentence.",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Print(response.Stdout)
 }
 ```
 
-Every method takes a `context.Context`. Canceling it kills `fm`. On Unix the whole process group dies, so helpers `fm` started die too; on Windows only `fm` itself is killed.
+Use `fm.New("/path/to/fm")` to choose an executable. Leave `Client.Env` nil to inherit the parent environment, or set it to supply the child's environment explicitly.
 
-`Client.Env` is the child environment. Leave it nil to pass through the current process environment.
+Every operation accepts a `context.Context`. Cancellation kills the process group on Unix, including helpers started by `fm`; on Windows it kills the direct subprocess.
+
+## Examples
+
+Run these programs from a checkout with a real `fm` installation:
+
+| Example | Demonstrates | Command |
+| --- | --- | --- |
+| [Text response](examples/respond/main.go) | A prompt with instructions and interrupt handling | `go run ./examples/respond "What does chmod do?"` |
+| [Structured output](examples/schema/main.go) | Generate a schema, request JSON, and decode into a Go struct | `go run ./examples/schema` |
+| [Image prompt](examples/image/main.go) | Attach an image to a prompt | `go run ./examples/image Screenshot.png` |
+
+These are runnable examples, not recorded native verification. The schema example also exercises provisional `--text` and integer-field flags; see [compatibility](docs/compatibility.md).
+
+## API overview
+
+| Method | Result |
+| --- | --- |
+| `client.Available(ctx)` | Readiness and raw availability output |
+| `client.Respond(ctx, prompt, opts)` | Buffered stdout, stderr, and optional JSON |
+| `client.CountTokens(ctx, request)` | Parsed token count |
+| `client.SchemaObject(ctx, schema)` | Schema JSON to write to a file and use with `SchemaPath` |
+
+Browse [package source](pkg/fm) or run `go doc ./pkg/fm` in a checkout for the exported API.
 
 ## Respond options
 
@@ -126,6 +146,14 @@ Subprocess failures return an `*fm.Error` with the subcommand, exit code, stdout
 
 Until exit codes from macOS 27 are captured, categories are best-effort matches against assumed stderr prefixes, not an Apple error-code contract. Unknown failures remain unclassified; the full stderr is always kept on the error.
 
+## Compatibility
+
+Reviewed against Apple's published documentation on **2026-10-29**. This SDK wraps CLI operations; it does not expose the complete Foundation Models framework.
+
+Apple's [Foundation Models updates](https://developer.apple.com/documentation/updates/foundationmodels) describe image analysis, Dynamic Profiles, tool-calling controls, model APIs, and revised Swift error types. Those APIs do not establish equivalent CLI flags or exit codes. Availability, token counting, some flag forms, and error categories still await native verification.
+
+See [the compatibility review](docs/compatibility.md) for the source audit, unsupported capabilities, and commands to verify before a release.
+
 ## Provisional CLI mapping
 
 | Go | `fm` arguments |
@@ -137,29 +165,26 @@ Until exit codes from macOS 27 are captured, categories are best-effort matches 
 
 Flag names live in `pkg/fm/flags.go`; argument ordering and output parsing live in the corresponding operation files. The [compatibility review](docs/compatibility.md) separates Apple-documented spellings from assumptions. In particular, `available`, `count-tokens`, `--text`, `--int`, and error prefixes still require native confirmation.
 
-## Examples
-
-`examples/respond`, `examples/schema`, and `examples/image` are small programs that need a real `fm`:
-
-```sh
-go run ./examples/respond "What does chmod do?"
-go run ./examples/schema
-go run ./examples/image Screenshot.png
-```
-
 ## Development
 
+Use [Just](https://github.com/casey/just) for the repository's checks:
+
 ```sh
-just test                  # fake-process tests with race detection, isolated in Docker
-just lint                  # formatting check and go vet, including the applefm tag
-just check cross-build     # Linux/macOS/Windows, amd64/arm64; no CGo
-just test-applefm           # native smoke tests only; skips if fm/model is unavailable
-just check native-required # same native tests, but missing prerequisites fail
+just --list                # Discover available commands
+just test                  # Isolated fake-process tests with the race detector
+just lint                  # Formatting, vet for both tags, optional golangci-lint
+just check cross-build     # Linux/macOS/Windows × amd64/arm64, without CGo
+just test-applefm           # Native smoke tests; unavailable prerequisites skip
+just check native-required # Native release gate; missing prerequisites fail
 ```
 
-The unit suite creates subprocess fixtures and runs inside a disposable Linux container with read-only source and networking disabled. Docker and the `golang:1.24-bookworm` image are required. Recipes are grouped in `.justfiles/check.just`.
+The unit suite runs in a disposable Docker container with read-only source and networking disabled. Docker and the `golang:1.24-bookworm` image are required. Checks live in the modular [.justfiles/check.just](.justfiles/check.just); [CI](https://github.com/Obedience-Corp/apple-fm-go/actions/workflows/ci.yml) uses the same recipes.
 
-The native suite checks availability, a nonempty on-device response, schema JSON, and token counts with bounded contexts. It does not opt into PCC or upload images. A skipped native suite is not compatibility evidence; use `native-required` for release validation. Image/PCC behavior and schema round-trips still need separate native verification.
+Native tests check availability, a nonempty on-device response, schema JSON, and token counts with bounded contexts. A skipped run does not establish compatibility. Image/PCC behavior and schema round-trips require separate native verification.
+
+## Contributing
+
+For CLI compatibility fixes, include the macOS version, relevant `fm --help` output, and a minimal reproduction with private inputs removed. Update the [compatibility review](docs/compatibility.md), add a regression test for changed behavior, and run the checks above. Keep new APIs grounded in observed CLI behavior.
 
 ## Related
 
